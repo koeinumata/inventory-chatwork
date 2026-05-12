@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "7t_3x6",
+    "quantity": 76,
+    "planned": 63
+  },
+  {
+    "id": 2,
+    "name": "7t_4x8",
+    "quantity": 1,
+    "planned": 32
+  },
+  {
+    "id": 3,
+    "name": "5t_3x6",
+    "quantity": 35,
+    "planned": 12
+  },
+  {
+    "id": 4,
+    "name": "5t_4x8",
+    "quantity": 12,
+    "planned": 7
+  }
+]
