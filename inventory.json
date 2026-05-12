@@ -8,7 +8,7 @@
   {
     "id": 2,
     "name": "7t_4x8",
-    "quantity": 1,
+    "quantity": 5,
     "planned": 32
   },
   {
@@ -22,5 +22,10 @@
     "name": "5t_4x8",
     "quantity": 12,
     "planned": 7
+  },
+  {
+    "id": 1778551938403,
+    "name": "ｱﾄﾗｽﾊﾟﾈﾙ_7t_4x8",
+    "quantity": 3
   }
 ]
