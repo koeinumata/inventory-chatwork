@@ -263,7 +263,12 @@
   function onQtyInput(id, value) {
     const v = parseInt(value, 10);
     if (!isNaN(v) && v >= 0) {
+      const prev = tempQty[id] ?? 0;
+      const diff = v - prev;
       tempQty[id] = v;
+      if (diff < 0) {
+        tempPlanned[id] = Math.max(0, (tempPlanned[id] ?? 0) + diff);
+      }
       render();
       const el = document.getElementById(`qty-input-${id}`);
       if (el) { el.focus(); el.select(); }
@@ -272,6 +277,9 @@
 
   function stepQty(id, delta) {
     tempQty[id] = Math.max(0, (tempQty[id] ?? 0) + delta);
+    if (delta < 0) {
+      tempPlanned[id] = Math.max(0, (tempPlanned[id] ?? 0) + delta);
+    }
     render();
   }
 
