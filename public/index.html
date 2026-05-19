@@ -235,7 +235,7 @@
             </div>
           </td>
           <td class="td-actions">
-            <button class="btn-confirm" onclick="confirmUpdate(${item.id})" ${confirmDisabled}>確定</button>
+            <button id="confirm-btn-${item.id}" class="btn-confirm" onclick="confirmUpdate(${item.id})" ${confirmDisabled}>確定</button>
             <button class="btn-danger"  onclick="deleteItem(${item.id})">削除</button>
           </td>`;
       } else {
@@ -249,7 +249,7 @@
             ${qtyControlHtml(item.id, planned, plannedChanged, isOver, "stepPlanned", "onPlannedInput", `planned-input-${item.id}`)}
           </td>
           <td class="td-actions">
-            <button class="btn-confirm" onclick="confirmUpdate(${item.id})" ${confirmDisabled}>確定</button>
+            <button id="confirm-btn-${item.id}" class="btn-confirm" onclick="confirmUpdate(${item.id})" ${confirmDisabled}>確定</button>
             <button class="btn-danger"  onclick="deleteItem(${item.id})">削除</button>
           </td>`;
       }
@@ -263,15 +263,34 @@
   function onQtyInput(id, value) {
     const v = parseInt(value, 10);
     if (!isNaN(v) && v >= 0) {
-      const prev = tempQty[id] ?? 0;
-      const diff = v - prev;
+      const item = items.find(i => i.id === id);
+      if (!item) return;
       tempQty[id] = v;
-      if (diff < 0) {
-        tempPlanned[id] = Math.max(0, (tempPlanned[id] ?? 0) + diff);
+
+      // 元の数量との差分で予定数量を連動させる（減った分だけ減らす）
+      const origQty     = item.quantity;
+      const origPlanned = item.planned ?? 0;
+      const totalDiff   = v - origQty;
+      if (totalDiff < 0) {
+        tempPlanned[id] = Math.max(0, origPlanned + totalDiff);
+      } else {
+        tempPlanned[id] = origPlanned;
       }
-      render();
-      const el = document.getElementById(`qty-input-${id}`);
-      if (el) { el.focus(); el.select(); }
+
+      // 入力中は再描画せず、各要素を直接更新する
+      const qtyEl = document.getElementById(`qty-input-${id}`);
+      if (qtyEl) qtyEl.classList.toggle('changed', v !== origQty);
+
+      const plannedEl = document.getElementById(`planned-input-${id}`);
+      if (plannedEl) {
+        plannedEl.value = tempPlanned[id];
+        plannedEl.classList.toggle('changed', tempPlanned[id] !== origPlanned);
+        plannedEl.classList.toggle('low-planned', tempPlanned[id] > v);
+      }
+
+      const anyChanged = v !== origQty || tempPlanned[id] !== origPlanned;
+      const confirmBtn = document.getElementById(`confirm-btn-${id}`);
+      if (confirmBtn) confirmBtn.disabled = !anyChanged;
     }
   }
 
@@ -286,10 +305,23 @@
   function onPlannedInput(id, value) {
     const v = parseInt(value, 10);
     if (!isNaN(v) && v >= 0) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
       tempPlanned[id] = v;
-      render();
-      const el = document.getElementById(`planned-input-${id}`);
-      if (el) { el.focus(); el.select(); }
+
+      // 入力中は再描画せず、各要素を直接更新する
+      const currentQty  = tempQty[id] ?? item.quantity;
+      const origPlanned = item.planned ?? 0;
+
+      const plannedEl = document.getElementById(`planned-input-${id}`);
+      if (plannedEl) {
+        plannedEl.classList.toggle('changed', v !== origPlanned);
+        plannedEl.classList.toggle('low-planned', v > currentQty);
+      }
+
+      const anyChanged = currentQty !== item.quantity || v !== origPlanned;
+      const confirmBtn = document.getElementById(`confirm-btn-${id}`);
+      if (confirmBtn) confirmBtn.disabled = !anyChanged;
     }
   }
 
