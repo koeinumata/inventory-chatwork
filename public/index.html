@@ -111,6 +111,17 @@
       td.td-actions button { margin: 0; }
     }
 
+    /* ケース追加ボタン */
+    .btn-case {
+      background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px;
+      color: #1d4ed8; font-size: 12px; font-weight: 700; padding: 5px 8px;
+      cursor: pointer; white-space: nowrap; line-height: 1.2; touch-action: manipulation;
+    }
+    .btn-case:active { background: #dbeafe; }
+
+    /* ケース枚数入力欄（追加フォーム） */
+    .input-case { width: 100px; flex-shrink: 0; }
+
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
     .toast.show { opacity: 1; }
   </style>
@@ -133,8 +144,9 @@
   <div class="add-form">
     <h2>商品を追加</h2>
     <div class="fields">
-      <input class="input-name" id="new-name" type="text" placeholder="商品名" />
+      <input class="input-name" id="new-name" type="text"   placeholder="商品名" />
       <input class="input-qty"  id="new-qty"  type="number" placeholder="数量" min="0" />
+      <input class="input-case" id="new-case" type="number" placeholder="ケース枚数" min="0" />
       <button class="btn-primary" id="add-btn" onclick="addItem()" disabled>追加</button>
     </div>
   </div>
@@ -163,6 +175,7 @@
 
   const nameInput = document.getElementById("new-name");
   const qtyInput  = document.getElementById("new-qty");
+  const caseInput = document.getElementById("new-case");
   const addBtn    = document.getElementById("add-btn");
 
   nameInput.addEventListener("input", updateAddBtn);
@@ -219,6 +232,10 @@
       const confirmDisabled = !anyChanged ? "disabled" : "";
       const tr = document.createElement("tr");
 
+      const caseBtnHtml = item.case_qty > 0
+        ? `<button class="btn-case" onclick="addCase(${item.id})">+${item.case_qty}<br>ケース</button>`
+        : '';
+
       if (isMobile()) {
         // カードレイアウト
         tr.innerHTML = `
@@ -227,7 +244,10 @@
             <div class="qty-row">
               <div class="qty-block">
                 <div class="qty-block-label">数量</div>
-                ${qtyControlHtml(item.id, current, qtyChanged, false, "stepQty", "onQtyInput", `qty-input-${item.id}`)}
+                <div style="display:inline-flex;align-items:center;gap:6px;">
+                  ${caseBtnHtml}
+                  ${qtyControlHtml(item.id, current, qtyChanged, false, "stepQty", "onQtyInput", `qty-input-${item.id}`)}
+                </div>
               </div>
               <div class="qty-block">
                 <div class="qty-block-label${isOver ? " red" : ""}">予定数量</div>
@@ -244,7 +264,10 @@
         tr.innerHTML = `
           <td>${esc(item.name)}</td>
           <td style="text-align:center">
-            ${qtyControlHtml(item.id, current, qtyChanged, false, "stepQty", "onQtyInput", `qty-input-${item.id}`)}
+            <div style="display:inline-flex;align-items:center;gap:6px;">
+              ${caseBtnHtml}
+              ${qtyControlHtml(item.id, current, qtyChanged, false, "stepQty", "onQtyInput", `qty-input-${item.id}`)}
+            </div>
           </td>
           <td style="text-align:center${isOver ? ";color:#c0392b;font-weight:600" : ""}">
             ${qtyControlHtml(item.id, planned, plannedChanged, isOver, "stepPlanned", "onPlannedInput", `planned-input-${item.id}`)}
@@ -362,16 +385,25 @@
     const name     = nameInput.value.trim();
     const quantity = parseInt(qtyInput.value, 10);
     if (!name || isNaN(quantity)) return;
+    const case_qty = parseInt(caseInput.value, 10) || 0;
     await fetch("/api/inventory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, quantity }),
+      body: JSON.stringify({ name, quantity, case_qty }),
     });
     nameInput.value = "";
     qtyInput.value  = "";
+    caseInput.value = "";
     updateAddBtn();
     await fetchInventory();
     showToast("商品を追加しました");
+  }
+
+  function addCase(id) {
+    const item = items.find(i => i.id === id);
+    if (!item || !item.case_qty) return;
+    tempQty[id] = (tempQty[id] ?? item.quantity) + item.case_qty;
+    render();
   }
 
   async function deleteItem(id) {
