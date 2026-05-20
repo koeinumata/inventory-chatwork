@@ -118,6 +118,11 @@
       cursor: pointer; white-space: nowrap; line-height: 1.2; touch-action: manipulation;
     }
     .btn-case:active { background: #dbeafe; }
+    .btn-case-placeholder {
+      display: inline-block;
+      width: 36px; height: 30px; /* btn-case と同じ幅・高さでスペースを確保 */
+      flex-shrink: 0;
+    }
 
     /* ケース枚数入力欄（追加フォーム） */
     .input-case { width: 100px; flex-shrink: 0; }
@@ -233,8 +238,8 @@
       const tr = document.createElement("tr");
 
       const caseBtnHtml = item.case_qty > 0
-        ? `<button class="btn-case" onclick="addCase(${item.id})">+${item.case_qty}<br>ケース</button>`
-        : '';
+        ? `<button class="btn-case" onclick="addCase(${item.id})">+${item.case_qty}</button>`
+        : `<span class="btn-case-placeholder"></span>`;
 
       if (isMobile()) {
         // カードレイアウト
