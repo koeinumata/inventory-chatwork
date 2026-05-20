@@ -210,6 +210,7 @@
             class="qty-input${changed ? " changed" : ""}${isRed ? " low-planned" : ""}"
             id="${inputId}"
             type="number" min="0" value="${val}"
+            onfocus="this.select()"
             oninput="${fnInput}(${id}, this.value)"
           />
           <button class="arrow-btn" onclick="${fnStep}(${id}, -1)"><span>▼</span></button>
@@ -265,30 +266,30 @@
     if (!isNaN(v) && v >= 0) {
       const item = items.find(i => i.id === id);
       if (!item) return;
-      tempQty[id] = v;
-
-      // 元の数量との差分で予定数量を連動させる（減った分だけ減らす）
       const origQty     = item.quantity;
       const origPlanned = item.planned ?? 0;
-      const totalDiff   = v - origQty;
-      if (totalDiff < 0) {
-        tempPlanned[id] = Math.max(0, origPlanned + totalDiff);
-      } else {
-        tempPlanned[id] = origPlanned;
+
+      // 直前の一時値との差分で予定数量を連動させる（減った分だけ減らす）
+      const prev = tempQty[id] ?? origQty;
+      const diff = v - prev;
+      tempQty[id] = v;
+      if (diff < 0) {
+        tempPlanned[id] = Math.max(0, (tempPlanned[id] ?? origPlanned) + diff);
       }
 
       // 入力中は再描画せず、各要素を直接更新する
       const qtyEl = document.getElementById(`qty-input-${id}`);
       if (qtyEl) qtyEl.classList.toggle('changed', v !== origQty);
 
+      const curPlanned = tempPlanned[id] ?? origPlanned;
       const plannedEl = document.getElementById(`planned-input-${id}`);
       if (plannedEl) {
-        plannedEl.value = tempPlanned[id];
-        plannedEl.classList.toggle('changed', tempPlanned[id] !== origPlanned);
-        plannedEl.classList.toggle('low-planned', tempPlanned[id] > v);
+        plannedEl.value = curPlanned;
+        plannedEl.classList.toggle('changed', curPlanned !== origPlanned);
+        plannedEl.classList.toggle('low-planned', curPlanned > v);
       }
 
-      const anyChanged = v !== origQty || tempPlanned[id] !== origPlanned;
+      const anyChanged = v !== origQty || curPlanned !== origPlanned;
       const confirmBtn = document.getElementById(`confirm-btn-${id}`);
       if (confirmBtn) confirmBtn.disabled = !anyChanged;
     }
