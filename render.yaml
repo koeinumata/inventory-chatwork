@@ -2,6 +2,7 @@ services:
   - type: web
     name: inventory-chatwork
     env: node
+    autoDeploy: true
     buildCommand: npm install
     startCommand: node server.js
     envVars:
