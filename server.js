@@ -4,6 +4,8 @@ const path = require("path");
 const https = require("https");
 const fs = require("fs");
 
+const { version } = require("./package.json");
+
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
@@ -114,6 +116,11 @@ function buildChangeMessage(changedItem, oldQty, newQty, allItems) {
 }
 
 // --- REST API ---
+
+// バージョン取得
+app.get("/api/version", (req, res) => {
+  res.json({ version });
+});
 
 // 一覧取得
 app.get("/api/inventory", async (req, res) => {
