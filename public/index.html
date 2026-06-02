@@ -7,7 +7,7 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #1a1a1a; }
-    .container { max-width: 680px; margin: 0 auto; padding: 24px 16px 48px; }
+    .container { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
     h1 { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
     h2 { font-size: 12px; font-weight: 600; color: #777; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
 
@@ -25,8 +25,9 @@
       font-size: 16px; outline: none; width: 100%;
     }
     input:focus { border-color: #0066ff; }
-    .input-name { flex: 1; min-width: 120px; }
-    .input-qty  { width: 90px; flex-shrink: 0; }
+    .input-name     { flex: 1; min-width: 120px; }
+    .input-qty      { width: 90px; flex-shrink: 0; }
+    .input-category { width: 130px; flex-shrink: 0; }
     button {
       border: none; border-radius: 6px; padding: 8px 16px;
       font-size: 14px; cursor: pointer; white-space: nowrap; touch-action: manipulation;
@@ -34,11 +35,20 @@
     .btn-primary { background: #0066ff; color: #fff; }
     .btn-primary:active { background: #0047cc; }
     .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
-    .btn-confirm { background: #0066ff; color: #fff; font-size: 13px; padding: 7px 14px; flex: 1; }
+    .btn-confirm { background: #0066ff; color: #fff; font-size: 13px; padding: 7px 14px; }
     .btn-confirm:active { background: #0047cc; }
     .btn-confirm:disabled { background: #ddd; color: #999; cursor: not-allowed; }
     .btn-danger  { background: transparent; color: #c0392b; border: 1px solid #e5e5e5; font-size: 13px; padding: 7px 14px; }
     .btn-danger:active { background: #fdecea; }
+
+    /* 予定0ボタン */
+    .btn-reset-planned {
+      background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px;
+      color: #c2410c; font-size: 12px; font-weight: 700; padding: 7px 10px;
+      cursor: pointer; white-space: nowrap; touch-action: manipulation;
+    }
+    .btn-reset-planned:active { background: #ffedd5; }
+    .btn-reset-planned:disabled { background: #f9fafb; border-color: #e5e5e5; color: #ccc; cursor: not-allowed; }
 
     /* 数量コントロール */
     .qty-control { display: inline-flex; align-items: center; gap: 6px; }
@@ -63,42 +73,82 @@
     }
     .arrow-btn span:active { background: #d0d0d0; }
 
+    /* 並び替えボタン */
+    .sort-btns {
+      display: inline-flex; flex-direction: column; gap: 2px;
+      vertical-align: middle; margin-right: 6px;
+    }
+    .sort-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 22px; height: 18px; background: #f0f0f0; border-radius: 3px;
+      font-size: 10px; color: #666; cursor: pointer; border: none;
+      touch-action: manipulation; line-height: 1;
+    }
+    .sort-btn:hover { background: #e0e0e0; }
+    .sort-btn:active { background: #ccc; }
+    .sort-btn:disabled { color: #ccc; cursor: default; background: #f8f8f8; }
+
+    /* カテゴリーバッジ */
+    .cat-badge {
+      display: inline-block; font-size: 11px; color: #6b7280;
+      background: #f3f4f6; border-radius: 4px; padding: 1px 6px; margin-top: 3px;
+      border: 1px solid #e5e7eb;
+    }
+    /* カテゴリー編集インライン入力 */
+    .cat-edit-input {
+      font-size: 11px; color: #6b7280; background: #f3f4f6;
+      border: 1px solid #d1d5db; border-radius: 4px; padding: 1px 6px;
+      margin-top: 3px; width: 110px; outline: none;
+    }
+    .cat-edit-input:focus { border-color: #0066ff; background: #fff; }
+
+    /* ---- カテゴリータブ ---- */
+    .tabs-wrapper { margin-bottom: 12px; overflow-x: auto; }
+    .tabs {
+      display: flex; gap: 4px; padding-bottom: 4px;
+      border-bottom: 2px solid #e5e5e5; min-width: max-content;
+    }
+    .tab-btn {
+      padding: 6px 14px; font-size: 13px; font-weight: 500;
+      border: none; border-radius: 6px 6px 0 0; cursor: pointer;
+      background: transparent; color: #777;
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      touch-action: manipulation; white-space: nowrap;
+    }
+    .tab-btn:hover { color: #333; background: #f0f0f0; }
+    .tab-btn.active { color: #0066ff; border-bottom-color: #0066ff; font-weight: 600; }
+
     /* ---- PC: テーブル ---- */
     table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; }
     th { font-size: 12px; font-weight: 600; color: #777; background: #fafafa; text-align: left; padding: 10px 14px; border-bottom: 1px solid #e5e5e5; }
-    td { padding: 8px 12px; font-size: 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    td { padding: 8px 10px; font-size: 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     .td-actions { text-align: right; white-space: nowrap; }
     .td-actions button { margin-left: 4px; }
+    .td-name { white-space: nowrap; }
 
     /* ---- スマートフォン: カードレイアウト ---- */
     @media (max-width: 580px) {
       .container { padding: 16px 12px 48px; }
       h1 { font-size: 20px; margin-bottom: 16px; }
 
-      /* テーブルをカード化 */
       table, thead, tbody, tr, td { display: block; width: 100%; }
       thead { display: none; }
       tr {
-        background: #fff;
-        border: 1px solid #e5e5e5;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        padding: 12px 14px;
+        background: #fff; border: 1px solid #e5e5e5; border-radius: 10px;
+        margin-bottom: 10px; padding: 12px 14px;
       }
       tr:last-child { margin-bottom: 0; }
       td { border: none; padding: 4px 0; }
 
-      /* 商品名 */
       td.td-name {
         font-size: 15px; font-weight: 600; padding-bottom: 10px;
         border-bottom: 1px solid #f0f0f0; margin-bottom: 8px;
+        display: flex; align-items: flex-start; gap: 8px;
       }
+      .name-main { flex: 1; }
 
-      /* 数量行: 横に2つ並べる */
-      .qty-row {
-        display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px;
-      }
+      .qty-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
       .qty-block { flex: 1; }
       .qty-block-label {
         font-size: 11px; color: #777; font-weight: 600;
@@ -106,8 +156,7 @@
       }
       .qty-block-label.red { color: #c0392b; }
 
-      /* 操作ボタン行 */
-      td.td-actions { display: flex; gap: 8px; padding-top: 6px; }
+      td.td-actions { display: flex; gap: 6px; padding-top: 6px; flex-wrap: wrap; }
       td.td-actions button { margin: 0; }
     }
 
@@ -119,12 +168,9 @@
     }
     .btn-case:active { background: #dbeafe; }
     .btn-case-placeholder {
-      display: inline-block;
-      width: 36px; height: 30px; /* btn-case と同じ幅・高さでスペースを確保 */
-      flex-shrink: 0;
+      display: inline-block; width: 36px; height: 30px; flex-shrink: 0;
     }
 
-    /* ケース枚数入力欄（追加フォーム） */
     .input-case { width: 100px; flex-shrink: 0; }
 
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
@@ -149,14 +195,21 @@
   <div class="add-form">
     <h2>商品を追加</h2>
     <div class="fields">
-      <input class="input-name" id="new-name" type="text"   placeholder="商品名" />
-      <input class="input-qty"  id="new-qty"  type="number" placeholder="数量" min="0" />
-      <input class="input-case" id="new-case" type="number" placeholder="ケース枚数" min="0" />
+      <input class="input-name"     id="new-name"     type="text"   placeholder="商品名" />
+      <input class="input-qty"      id="new-qty"      type="number" placeholder="数量"       min="0" />
+      <input class="input-case"     id="new-case"     type="number" placeholder="ケース枚数"  min="0" />
+      <input class="input-category" id="new-category" type="text"   placeholder="カテゴリー（任意）" list="category-list" />
+      <datalist id="category-list"></datalist>
       <button class="btn-primary" id="add-btn" onclick="addItem()" disabled>追加</button>
     </div>
   </div>
 
-  <h2 style="margin-bottom:10px">在庫一覧</h2>
+  <h2 style="margin-bottom:8px">在庫一覧</h2>
+
+  <div class="tabs-wrapper">
+    <div class="tabs" id="tabs"></div>
+  </div>
+
   <table>
     <thead>
       <tr>
@@ -175,16 +228,18 @@
 
 <script>
   let items = [];
-  let tempQty = {};
+  let tempQty     = {};
   let tempPlanned = {};
+  let activeCategory = "__all__";
 
-  const nameInput = document.getElementById("new-name");
-  const qtyInput  = document.getElementById("new-qty");
-  const caseInput = document.getElementById("new-case");
-  const addBtn    = document.getElementById("add-btn");
+  const nameInput     = document.getElementById("new-name");
+  const qtyInput      = document.getElementById("new-qty");
+  const caseInput     = document.getElementById("new-case");
+  const categoryInput = document.getElementById("new-category");
+  const addBtn        = document.getElementById("add-btn");
 
   nameInput.addEventListener("input", updateAddBtn);
-  qtyInput.addEventListener("input", updateAddBtn);
+  qtyInput.addEventListener("input",  updateAddBtn);
   nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addItem(); });
 
   function updateAddBtn() {
@@ -194,32 +249,78 @@
   async function fetchInventory() {
     const res = await fetch("/api/inventory");
     items = await res.json();
-    tempQty = {};
+    tempQty     = {};
     tempPlanned = {};
     items.forEach((i) => {
       tempQty[i.id]     = i.quantity;
       tempPlanned[i.id] = i.planned ?? 0;
     });
+    renderTabs();
     render();
   }
+
+  // ---- カテゴリー管理 ----
+
+  function getCategories() {
+    const cats = [...new Set(items.map(i => (i.category || "").trim()).filter(c => c !== ""))].sort();
+    return cats;
+  }
+
+  function getFilteredItems() {
+    if (activeCategory === "__all__") return items;
+    return items.filter(i => (i.category || "").trim() === activeCategory);
+  }
+
+  function renderTabs() {
+    const cats = getCategories();
+    const tabsEl = document.getElementById("tabs");
+    tabsEl.innerHTML = "";
+
+    const allBtn = document.createElement("button");
+    allBtn.className = "tab-btn" + (activeCategory === "__all__" ? " active" : "");
+    allBtn.textContent = `すべて（${items.length}）`;
+    allBtn.onclick = () => { activeCategory = "__all__"; renderTabs(); render(); };
+    tabsEl.appendChild(allBtn);
+
+    cats.forEach(cat => {
+      const count = items.filter(i => (i.category || "").trim() === cat).length;
+      const btn = document.createElement("button");
+      btn.className = "tab-btn" + (activeCategory === cat ? " active" : "");
+      btn.textContent = `${cat}（${count}）`;
+      btn.onclick = () => { activeCategory = cat; renderTabs(); render(); };
+      tabsEl.appendChild(btn);
+    });
+
+    // カテゴリー datalist を更新
+    const dl = document.getElementById("category-list");
+    dl.innerHTML = cats.map(c => `<option value="${esc(c)}">`).join("");
+  }
+
+  // ---- 描画 ----
 
   const isMobile = () => window.innerWidth <= 580;
 
   function render() {
-    const tbody = document.getElementById("inventory-body");
-    const totalQty = items.reduce((s, i) => s + i.quantity, 0);
+    const tbody     = document.getElementById("inventory-body");
+    const totalQty  = items.reduce((s, i) => s + i.quantity, 0);
+    const filtered  = getFilteredItems();
     document.getElementById("stat-total").textContent = items.length;
-    document.getElementById("stat-qty").textContent = totalQty.toLocaleString();
-    document.getElementById("count-label").textContent = `全 ${items.length} 件`;
+    document.getElementById("stat-qty").textContent   = totalQty.toLocaleString();
+    document.getElementById("count-label").textContent = activeCategory === "__all__"
+      ? `全 ${items.length} 件`
+      : `${activeCategory} — ${filtered.length} 件（全 ${items.length} 件）`;
 
     tbody.innerHTML = "";
-    items.forEach((item) => {
-      const current        = tempQty[item.id] ?? item.quantity;
-      const planned        = tempPlanned[item.id] ?? (item.planned ?? 0);
+    filtered.forEach((item, filteredIdx) => {
+      const globalIdx      = items.findIndex(i => i.id === item.id);
+      const current        = tempQty[item.id]     ?? item.quantity;
+      const planned        = tempPlanned[item.id]  ?? (item.planned ?? 0);
       const qtyChanged     = current !== item.quantity;
       const plannedChanged = planned !== (item.planned ?? 0);
       const isOver         = planned > current;
       const anyChanged     = qtyChanged || plannedChanged;
+      const isFirst        = globalIdx === 0;
+      const isLast         = globalIdx === items.length - 1;
 
       const qtyControlHtml = (id, val, changed, isRed, fnStep, fnInput, inputId) => `
         <div class="qty-control">
@@ -234,17 +335,37 @@
           <button class="arrow-btn" onclick="${fnStep}(${id}, -1)"><span>▼</span></button>
         </div>`;
 
-      const confirmDisabled = !anyChanged ? "disabled" : "";
-      const tr = document.createElement("tr");
+      const confirmDisabled     = !anyChanged ? "disabled" : "";
+      const resetPlannedDisabled = planned === 0 ? "disabled" : "";
 
       const caseBtnHtml = item.case_qty > 0
         ? `<button class="btn-case" onclick="addCase(${item.id})">+${item.case_qty}</button>`
         : `<span class="btn-case-placeholder"></span>`;
 
+      const sortBtnsHtml = `
+        <span class="sort-btns">
+          <button class="sort-btn" onclick="moveItem(${item.id}, 'up')"   ${isFirst ? "disabled" : ""} title="上へ">▲</button>
+          <button class="sort-btn" onclick="moveItem(${item.id}, 'down')" ${isLast  ? "disabled" : ""} title="下へ">▼</button>
+        </span>`;
+
+      const catValue   = (item.category || "").trim();
+      const catDisplay = catValue
+        ? `<input class="cat-edit-input" value="${esc(catValue)}" placeholder="カテゴリー" list="category-list"
+             onblur="saveCategory(${item.id}, this.value)" onkeydown="if(event.key==='Enter')this.blur()" />`
+        : `<input class="cat-edit-input" value="" placeholder="カテゴリー" list="category-list"
+             onblur="saveCategory(${item.id}, this.value)" onkeydown="if(event.key==='Enter')this.blur()" />`;
+
+      const tr = document.createElement("tr");
+
       if (isMobile()) {
-        // カードレイアウト
         tr.innerHTML = `
-          <td class="td-name">${esc(item.name)}</td>
+          <td class="td-name">
+            <div class="name-main">
+              <div>${esc(item.name)}</div>
+              ${catDisplay}
+            </div>
+            ${sortBtnsHtml}
+          </td>
           <td>
             <div class="qty-row">
               <div class="qty-block">
@@ -261,13 +382,16 @@
             </div>
           </td>
           <td class="td-actions">
+            <button class="btn-reset-planned" onclick="resetPlanned(${item.id})" ${resetPlannedDisabled} title="予定数量を0にして数量から差し引く">予定0</button>
             <button id="confirm-btn-${item.id}" class="btn-confirm" onclick="confirmUpdate(${item.id})" ${confirmDisabled}>確定</button>
-            <button class="btn-danger"  onclick="deleteItem(${item.id})">削除</button>
+            <button class="btn-danger" onclick="deleteItem(${item.id})">削除</button>
           </td>`;
       } else {
-        // テーブルレイアウト
         tr.innerHTML = `
-          <td>${esc(item.name)}</td>
+          <td class="td-name">
+            ${sortBtnsHtml}${esc(item.name)}
+            <div>${catDisplay}</div>
+          </td>
           <td style="text-align:center">
             <div style="display:inline-flex;align-items:center;gap:6px;">
               ${caseBtnHtml}
@@ -278,17 +402,65 @@
             ${qtyControlHtml(item.id, planned, plannedChanged, isOver, "stepPlanned", "onPlannedInput", `planned-input-${item.id}`)}
           </td>
           <td class="td-actions">
+            <button class="btn-reset-planned" onclick="resetPlanned(${item.id})" ${resetPlannedDisabled} title="予定数量を0にして数量から差し引く">予定0</button>
             <button id="confirm-btn-${item.id}" class="btn-confirm" onclick="confirmUpdate(${item.id})" ${confirmDisabled}>確定</button>
-            <button class="btn-danger"  onclick="deleteItem(${item.id})">削除</button>
+            <button class="btn-danger" onclick="deleteItem(${item.id})">削除</button>
           </td>`;
       }
       tbody.appendChild(tr);
     });
   }
 
-  // 画面リサイズ時に再描画
   window.addEventListener("resize", render);
 
+  // ---- 予定0ボタン ----
+  function resetPlanned(id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    const currentQty     = tempQty[id]     ?? item.quantity;
+    const currentPlanned = tempPlanned[id]  ?? (item.planned ?? 0);
+    if (currentPlanned === 0) return;
+
+    tempQty[id]     = Math.max(0, currentQty - currentPlanned);
+    tempPlanned[id] = 0;
+    render();
+  }
+
+  // ---- 並び替え ----
+  async function moveItem(id, direction) {
+    const idx = items.findIndex(i => i.id === id);
+    if (idx === -1) return;
+    if (direction === "up"   && idx === 0)               return;
+    if (direction === "down" && idx === items.length - 1) return;
+
+    const newItems = [...items];
+    const swapIdx  = direction === "up" ? idx - 1 : idx + 1;
+    [newItems[idx], newItems[swapIdx]] = [newItems[swapIdx], newItems[idx]];
+
+    await fetch("/api/inventory/reorder", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: newItems.map(i => i.id) }),
+    });
+    await fetchInventory();
+  }
+
+  // ---- カテゴリー保存 ----
+  async function saveCategory(id, value) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    const newCat = (value || "").trim();
+    if (newCat === (item.category || "").trim()) return;
+
+    await fetch(`/api/inventory/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category: newCat }),
+    });
+    await fetchInventory();
+  }
+
+  // ---- 数量操作 ----
   function onQtyInput(id, value) {
     const v = parseInt(value, 10);
     if (!isNaN(v) && v >= 0) {
@@ -296,25 +468,22 @@
       if (!item) return;
       const origQty     = item.quantity;
       const origPlanned = item.planned ?? 0;
-
-      // 直前の一時値との差分で予定数量を連動させる（減った分だけ減らす）
-      const prev = tempQty[id] ?? origQty;
-      const diff = v - prev;
-      tempQty[id] = v;
+      const prev        = tempQty[id] ?? origQty;
+      const diff        = v - prev;
+      tempQty[id]       = v;
       if (diff < 0) {
         tempPlanned[id] = Math.max(0, (tempPlanned[id] ?? origPlanned) + diff);
       }
 
-      // 入力中は再描画せず、各要素を直接更新する
       const qtyEl = document.getElementById(`qty-input-${id}`);
-      if (qtyEl) qtyEl.classList.toggle('changed', v !== origQty);
+      if (qtyEl) qtyEl.classList.toggle("changed", v !== origQty);
 
       const curPlanned = tempPlanned[id] ?? origPlanned;
-      const plannedEl = document.getElementById(`planned-input-${id}`);
+      const plannedEl  = document.getElementById(`planned-input-${id}`);
       if (plannedEl) {
         plannedEl.value = curPlanned;
-        plannedEl.classList.toggle('changed', curPlanned !== origPlanned);
-        plannedEl.classList.toggle('low-planned', curPlanned > v);
+        plannedEl.classList.toggle("changed",     curPlanned !== origPlanned);
+        plannedEl.classList.toggle("low-planned", curPlanned > v);
       }
 
       const anyChanged = v !== origQty || curPlanned !== origPlanned;
@@ -338,14 +507,13 @@
       if (!item) return;
       tempPlanned[id] = v;
 
-      // 入力中は再描画せず、各要素を直接更新する
-      const currentQty  = tempQty[id] ?? item.quantity;
+      const currentQty  = tempQty[id]     ?? item.quantity;
       const origPlanned = item.planned ?? 0;
 
       const plannedEl = document.getElementById(`planned-input-${id}`);
       if (plannedEl) {
-        plannedEl.classList.toggle('changed', v !== origPlanned);
-        plannedEl.classList.toggle('low-planned', v > currentQty);
+        plannedEl.classList.toggle("changed",     v !== origPlanned);
+        plannedEl.classList.toggle("low-planned", v > currentQty);
       }
 
       const anyChanged = currentQty !== item.quantity || v !== origPlanned;
@@ -359,11 +527,12 @@
     render();
   }
 
+  // ---- 確定保存 ----
   async function confirmUpdate(id) {
     const item = items.find((i) => i.id === id);
     if (!item) return;
-    const qty            = tempQty[id] ?? item.quantity;
-    const planned        = tempPlanned[id] ?? (item.planned ?? 0);
+    const qty            = tempQty[id]     ?? item.quantity;
+    const planned        = tempPlanned[id]  ?? (item.planned ?? 0);
     const qtyChanged     = qty     !== item.quantity;
     const plannedChanged = planned !== (item.planned ?? 0);
 
@@ -386,19 +555,22 @@
     showToast(qtyChanged ? "更新しました（Chatworkに通知済み）" : "予定数量を更新しました");
   }
 
+  // ---- 商品追加 ----
   async function addItem() {
     const name     = nameInput.value.trim();
     const quantity = parseInt(qtyInput.value, 10);
     if (!name || isNaN(quantity)) return;
     const case_qty = parseInt(caseInput.value, 10) || 0;
+    const category = categoryInput.value.trim();
     await fetch("/api/inventory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, quantity, case_qty }),
+      body: JSON.stringify({ name, quantity, case_qty, category }),
     });
-    nameInput.value = "";
-    qtyInput.value  = "";
-    caseInput.value = "";
+    nameInput.value     = "";
+    qtyInput.value      = "";
+    caseInput.value     = "";
+    categoryInput.value = "";
     updateAddBtn();
     await fetchInventory();
     showToast("商品を追加しました");
@@ -426,7 +598,9 @@
   }
 
   function esc(str) {
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
   fetchInventory();

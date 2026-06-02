@@ -18,8 +18,12 @@ const JSON_FILE = path.join(__dirname, "inventory.json");
 function loadJSON() {
   if (!fs.existsSync(JSON_FILE)) fs.writeFileSync(JSON_FILE, "[]");
   const data = JSON.parse(fs.readFileSync(JSON_FILE, "utf8"));
-  // 既存データへの後方互換対応
-  return data.map(item => ({ case_qty: 0, ...item }));
+  return data.map((item, idx) => ({
+    case_qty: 0,
+    category: "",
+    sort_order: idx,
+    ...item,
+  }));
 }
 function saveJSON(data) {
   fs.writeFileSync(JSON_FILE, JSON.stringify(data, null, 2));
@@ -42,17 +46,21 @@ async function initDB() {
   }
   await pool.query(`
     CREATE TABLE IF NOT EXISTS inventory (
-      id        SERIAL PRIMARY KEY,
-      name      TEXT    NOT NULL,
-      quantity  INTEGER NOT NULL DEFAULT 0,
-      planned   INTEGER NOT NULL DEFAULT 0,
-      case_qty  INTEGER NOT NULL DEFAULT 0
+      id         SERIAL PRIMARY KEY,
+      name       TEXT    NOT NULL,
+      quantity   INTEGER NOT NULL DEFAULT 0,
+      planned    INTEGER NOT NULL DEFAULT 0,
+      case_qty   INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      category   TEXT    NOT NULL DEFAULT ''
     )
   `);
-  // 既存テーブルへの後方互換マイグレーション
-  await pool.query(`
-    ALTER TABLE inventory ADD COLUMN IF NOT EXISTS case_qty INTEGER NOT NULL DEFAULT 0
-  `);
+  // 後方互換マイグレーション
+  await pool.query(`ALTER TABLE inventory ADD COLUMN IF NOT EXISTS case_qty   INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE inventory ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE inventory ADD COLUMN IF NOT EXISTS category   TEXT    NOT NULL DEFAULT ''`);
+  // sort_order が 0 のままの既存行に id を割り当てる
+  await pool.query(`UPDATE inventory SET sort_order = id WHERE sort_order = 0`);
   console.log("データベース初期化完了");
 }
 
@@ -112,46 +120,76 @@ app.get("/api/inventory", async (req, res) => {
   if (!USE_DB) {
     return res.json(loadJSON());
   }
-  const result = await pool.query("SELECT * FROM inventory ORDER BY id");
+  const result = await pool.query("SELECT * FROM inventory ORDER BY sort_order, id");
   res.json(result.rows);
+});
+
+// 並び替え（※ :id ルートより前に定義する）
+app.put("/api/inventory/reorder", async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids)) return res.status(400).json({ error: "ids が必要です" });
+
+  if (!USE_DB) {
+    const data = loadJSON();
+    const map = new Map(data.map(i => [i.id, i]));
+    const reordered = ids.map(id => map.get(id)).filter(Boolean);
+    // ids に含まれなかった項目を末尾に追加（安全策）
+    const includedIds = new Set(ids);
+    data.filter(i => !includedIds.has(i.id)).forEach(i => reordered.push(i));
+    saveJSON(reordered);
+    return res.json({ ok: true });
+  }
+
+  const updates = ids.map((id, idx) =>
+    pool.query("UPDATE inventory SET sort_order = $1 WHERE id = $2", [idx + 1, id])
+  );
+  await Promise.all(updates);
+  res.json({ ok: true });
 });
 
 // 商品追加
 app.post("/api/inventory", async (req, res) => {
-  const { name, quantity, case_qty } = req.body;
+  const { name, quantity, case_qty, category } = req.body;
   if (!name || quantity === undefined) {
     return res.status(400).json({ error: "name と quantity は必須です" });
   }
-  const caseQty = Number(case_qty) || 0;
+  const caseQty  = Number(case_qty)  || 0;
+  const catValue = String(category || "").trim();
+
   if (!USE_DB) {
     const data = loadJSON();
-    const newId = data.length > 0 ? Math.max(...data.map(i => i.id)) + 1 : 1;
-    const item = { id: newId, name: String(name).trim(), quantity: Number(quantity), planned: 0, case_qty: caseQty };
+    const newId      = data.length > 0 ? Math.max(...data.map(i => i.id)) + 1 : 1;
+    const sortOrder  = data.length;
+    const item = { id: newId, name: String(name).trim(), quantity: Number(quantity), planned: 0, case_qty: caseQty, sort_order: sortOrder, category: catValue };
     data.push(item);
     saveJSON(data);
     return res.status(201).json(item);
   }
+
+  const maxResult = await pool.query("SELECT COALESCE(MAX(sort_order), 0) AS max_order FROM inventory");
+  const sortOrder  = (maxResult.rows[0].max_order || 0) + 1;
   const result = await pool.query(
-    "INSERT INTO inventory (name, quantity, planned, case_qty) VALUES ($1, $2, 0, $3) RETURNING *",
-    [String(name).trim(), Number(quantity), caseQty]
+    "INSERT INTO inventory (name, quantity, planned, case_qty, sort_order, category) VALUES ($1, $2, 0, $3, $4, $5) RETURNING *",
+    [String(name).trim(), Number(quantity), caseQty, sortOrder, catValue]
   );
   res.status(201).json(result.rows[0]);
 });
 
-// 数量更新（Chatwork通知あり）
+// 数量・カテゴリー更新（Chatwork通知あり）
 app.put("/api/inventory/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const { name, quantity, case_qty } = req.body;
+  const { name, quantity, case_qty, category } = req.body;
 
   if (!USE_DB) {
     const data = loadJSON();
     const idx = data.findIndex(i => i.id === id);
     if (idx === -1) return res.status(404).json({ error: "商品が見つかりません" });
     const oldItem = data[idx];
-    const newName    = name     !== undefined ? String(name).trim() : oldItem.name;
-    const newQty     = quantity !== undefined ? Number(quantity)    : oldItem.quantity;
-    const newCaseQty = case_qty !== undefined ? Number(case_qty)    : (oldItem.case_qty ?? 0);
-    data[idx] = { ...oldItem, name: newName, quantity: newQty, case_qty: newCaseQty };
+    const newName     = name     !== undefined ? String(name).trim()    : oldItem.name;
+    const newQty      = quantity !== undefined ? Number(quantity)        : oldItem.quantity;
+    const newCaseQty  = case_qty !== undefined ? Number(case_qty)        : (oldItem.case_qty ?? 0);
+    const newCategory = category !== undefined ? String(category).trim() : (oldItem.category ?? "");
+    data[idx] = { ...oldItem, name: newName, quantity: newQty, case_qty: newCaseQty, category: newCategory };
     saveJSON(data);
     if (quantity !== undefined && newQty !== oldItem.quantity) {
       const msg = buildChangeMessage(data[idx], oldItem.quantity, newQty, data);
@@ -163,18 +201,19 @@ app.put("/api/inventory/:id", async (req, res) => {
   const current = await pool.query("SELECT * FROM inventory WHERE id = $1", [id]);
   if (current.rows.length === 0) return res.status(404).json({ error: "商品が見つかりません" });
 
-  const oldItem    = current.rows[0];
-  const newName    = name     !== undefined ? String(name).trim() : oldItem.name;
-  const newQty     = quantity !== undefined ? Number(quantity)    : oldItem.quantity;
-  const newCaseQty = case_qty !== undefined ? Number(case_qty)    : (oldItem.case_qty ?? 0);
+  const oldItem     = current.rows[0];
+  const newName     = name     !== undefined ? String(name).trim()    : oldItem.name;
+  const newQty      = quantity !== undefined ? Number(quantity)        : oldItem.quantity;
+  const newCaseQty  = case_qty !== undefined ? Number(case_qty)        : (oldItem.case_qty ?? 0);
+  const newCategory = category !== undefined ? String(category).trim() : (oldItem.category ?? "");
 
   const updated = await pool.query(
-    "UPDATE inventory SET name = $1, quantity = $2, case_qty = $3 WHERE id = $4 RETURNING *",
-    [newName, newQty, newCaseQty, id]
+    "UPDATE inventory SET name = $1, quantity = $2, case_qty = $3, category = $4 WHERE id = $5 RETURNING *",
+    [newName, newQty, newCaseQty, newCategory, id]
   );
 
   if (quantity !== undefined && newQty !== oldItem.quantity) {
-    const all = await pool.query("SELECT * FROM inventory ORDER BY id");
+    const all = await pool.query("SELECT * FROM inventory ORDER BY sort_order, id");
     const msg = buildChangeMessage(updated.rows[0], oldItem.quantity, newQty, all.rows);
     sendChatwork(msg);
   }
@@ -212,7 +251,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
     const data = loadJSON();
     const idx = data.findIndex(i => i.id === id);
     if (idx === -1) return res.status(404).json({ error: "商品が見つかりません" });
-    const [removed] = data.splice(idx, 1);
+    data.splice(idx, 1);
     saveJSON(data);
     return res.json({ ok: true });
   }
