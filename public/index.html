@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>在庫管理</title>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #1a1a1a; }
@@ -94,6 +95,16 @@
     .sort-btn:active { background: #ccc; }
     .sort-btn:disabled { color: #ccc; cursor: default; background: #f8f8f8; }
 
+    /* ドラッグハンドル */
+    .drag-handle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 36px; margin-right: 6px; vertical-align: middle;
+      cursor: grab; color: #ccc; font-size: 16px; user-select: none;
+      flex-shrink: 0;
+    }
+    .drag-handle:active { cursor: grabbing; color: #999; }
+    .sortable-ghost { opacity: 0.4; background: #e8f0ff; }
+
     /* カテゴリーバッジ */
     .cat-badge {
       display: inline-block; font-size: 11px; color: #6b7280;
@@ -181,6 +192,21 @@
 
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
     .toast.show { opacity: 1; }
+
+    /* 一括確定バー */
+    .bulk-confirm-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px;
+      padding: 10px 14px; margin-bottom: 12px; gap: 12px;
+    }
+    .bulk-confirm-bar.hidden { display: none; }
+    .bulk-confirm-label { font-size: 13px; color: #92400e; font-weight: 500; }
+    .btn-bulk-confirm {
+      background: #f59e0b; color: #fff; font-size: 14px; font-weight: 700;
+      padding: 8px 20px; border-radius: 6px; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-bulk-confirm:active { background: #d97706; }
+    .btn-bulk-confirm:disabled { background: #ddd; color: #999; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -214,6 +240,11 @@
 
   <div class="tabs-wrapper">
     <div class="tabs" id="tabs"></div>
+  </div>
+
+  <div class="bulk-confirm-bar hidden" id="bulk-confirm-bar">
+    <span class="bulk-confirm-label" id="bulk-confirm-label">編集中の項目があります</span>
+    <button class="btn-bulk-confirm" onclick="confirmAllUpdates()">まとめて確定</button>
   </div>
 
   <table>
@@ -317,16 +348,13 @@
       : `${activeCategory} — ${filtered.length} 件（全 ${items.length} 件）`;
 
     tbody.innerHTML = "";
-    filtered.forEach((item, filteredIdx) => {
-      const globalIdx      = items.findIndex(i => i.id === item.id);
+    filtered.forEach((item) => {
       const current        = tempQty[item.id]     ?? item.quantity;
       const planned        = tempPlanned[item.id]  ?? (item.planned ?? 0);
       const qtyChanged     = current !== item.quantity;
       const plannedChanged = planned !== (item.planned ?? 0);
       const isOver         = planned > current;
       const anyChanged     = qtyChanged || plannedChanged;
-      const isFirst        = globalIdx === 0;
-      const isLast         = globalIdx === items.length - 1;
 
       const qtyControlHtml = (id, val, changed, isRed, fnStep, fnInput, inputId) => `
         <div class="qty-control">
@@ -341,18 +369,13 @@
           <button class="arrow-btn" onclick="${fnStep}(${id}, -1)"><span>▼</span></button>
         </div>`;
 
-      const confirmDisabled     = !anyChanged ? "disabled" : "";
       const resetPlannedDisabled = planned === 0 ? "disabled" : "";
 
       const caseBtnHtml = item.case_qty > 0
         ? `<button class="btn-case" onclick="addCase(${item.id})">+${item.case_qty}</button>`
         : `<span class="btn-case-placeholder"></span>`;
 
-      const sortBtnsHtml = `
-        <span class="sort-btns">
-          <button class="sort-btn" onclick="moveItem(${item.id}, 'up')"   ${isFirst ? "disabled" : ""} title="上へ">▲</button>
-          <button class="sort-btn" onclick="moveItem(${item.id}, 'down')" ${isLast  ? "disabled" : ""} title="下へ">▼</button>
-        </span>`;
+      const dragHandle = `<span class="drag-handle" title="ドラッグして並び替え">⠿</span>`;
 
       const catValue   = (item.category || "").trim();
       const catDisplay = catValue
@@ -362,6 +385,7 @@
              onblur="saveCategory(${item.id}, this.value)" onkeydown="if(event.key==='Enter')this.blur()" />`;
 
       const tr = document.createElement("tr");
+      tr.dataset.id = item.id;
 
       if (isMobile()) {
         tr.innerHTML = `
@@ -370,7 +394,7 @@
               <div>${esc(item.name)}</div>
               ${catDisplay}
             </div>
-            ${sortBtnsHtml}
+            ${dragHandle}
           </td>
           <td>
             <div class="qty-row">
@@ -389,13 +413,12 @@
           </td>
           <td class="td-actions">
             <button class="btn-reset-planned" onclick="resetPlanned(${item.id})" ${resetPlannedDisabled} title="予定数量を0にして数量から差し引く">予定0</button>
-            <button id="confirm-btn-${item.id}" class="btn-confirm" onclick="confirmUpdate(${item.id})" ${confirmDisabled}>確定</button>
             <button class="btn-danger" onclick="deleteItem(${item.id})">削除</button>
           </td>`;
       } else {
         tr.innerHTML = `
           <td class="td-name">
-            ${sortBtnsHtml}${esc(item.name)}
+            ${dragHandle}${esc(item.name)}
             <div>${catDisplay}</div>
           </td>
           <td style="text-align:center">
@@ -409,12 +432,13 @@
           </td>
           <td class="td-actions">
             <button class="btn-reset-planned" onclick="resetPlanned(${item.id})" ${resetPlannedDisabled} title="予定数量を0にして数量から差し引く">予定0</button>
-            <button id="confirm-btn-${item.id}" class="btn-confirm" onclick="confirmUpdate(${item.id})" ${confirmDisabled}>確定</button>
             <button class="btn-danger" onclick="deleteItem(${item.id})">削除</button>
           </td>`;
       }
       tbody.appendChild(tr);
     });
+    updateBulkConfirmBtn();
+    initSortable();
   }
 
   window.addEventListener("resize", render);
@@ -432,23 +456,41 @@
     render();
   }
 
-  // ---- 並び替え ----
-  async function moveItem(id, direction) {
-    const idx = items.findIndex(i => i.id === id);
-    if (idx === -1) return;
-    if (direction === "up"   && idx === 0)               return;
-    if (direction === "down" && idx === items.length - 1) return;
+  // ---- ドラッグ＆ドロップ並び替え ----
+  let _sortable = null;
 
-    const newItems = [...items];
-    const swapIdx  = direction === "up" ? idx - 1 : idx + 1;
-    [newItems[idx], newItems[swapIdx]] = [newItems[swapIdx], newItems[idx]];
+  function initSortable() {
+    if (_sortable) { _sortable.destroy(); _sortable = null; }
 
-    await fetch("/api/inventory/reorder", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: newItems.map(i => i.id) }),
+    const tbody = document.getElementById("inventory-body");
+    _sortable = Sortable.create(tbody, {
+      handle: ".drag-handle",
+      animation: 150,
+      delay: 150,
+      delayOnTouchOnly: true,
+      ghostClass: "sortable-ghost",
+      onEnd: async function () {
+        const rows      = [...tbody.querySelectorAll("tr")];
+        const visibleIds = rows.map(tr => Number(tr.dataset.id));
+
+        let newOrder;
+        if (activeCategory === "__all__") {
+          newOrder = visibleIds;
+        } else {
+          // フィルター中: 表示外アイテムの相対順を保ちつつ並び替え
+          const filterFn = i => (i.category || "").trim() === activeCategory;
+          let vi = 0;
+          newOrder = items.map(item => filterFn(item) ? visibleIds[vi++] : item.id);
+        }
+
+        await fetch("/api/inventory/reorder", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: newOrder }),
+        });
+        await fetchInventory();
+      },
     });
-    await fetchInventory();
   }
 
   // ---- カテゴリー保存 ----
@@ -493,8 +535,7 @@
       }
 
       const anyChanged = v !== origQty || curPlanned !== origPlanned;
-      const confirmBtn = document.getElementById(`confirm-btn-${id}`);
-      if (confirmBtn) confirmBtn.disabled = !anyChanged;
+      updateBulkConfirmBtn();
     }
   }
 
@@ -523,8 +564,7 @@
       }
 
       const anyChanged = currentQty !== item.quantity || v !== origPlanned;
-      const confirmBtn = document.getElementById(`confirm-btn-${id}`);
-      if (confirmBtn) confirmBtn.disabled = !anyChanged;
+      updateBulkConfirmBtn();
     }
   }
 
@@ -533,32 +573,52 @@
     render();
   }
 
-  // ---- 確定保存 ----
-  async function confirmUpdate(id) {
-    const item = items.find((i) => i.id === id);
-    if (!item) return;
-    const qty            = tempQty[id]     ?? item.quantity;
-    const planned        = tempPlanned[id]  ?? (item.planned ?? 0);
-    const qtyChanged     = qty     !== item.quantity;
-    const plannedChanged = planned !== (item.planned ?? 0);
+  // ---- 一括確定バー更新 ----
+  function updateBulkConfirmBtn() {
+    const changedItems = items.filter(item => {
+      const qty     = tempQty[item.id]     ?? item.quantity;
+      const planned = tempPlanned[item.id]  ?? (item.planned ?? 0);
+      return qty !== item.quantity || planned !== (item.planned ?? 0);
+    });
+    const bar   = document.getElementById("bulk-confirm-bar");
+    const label = document.getElementById("bulk-confirm-label");
+    if (changedItems.length > 0) {
+      bar.classList.remove("hidden");
+      label.textContent = `${changedItems.length} 件の変更があります`;
+    } else {
+      bar.classList.add("hidden");
+    }
+  }
 
-    if (qtyChanged) {
-      await fetch(`/api/inventory/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: item.name, quantity: qty }),
-      });
-    }
-    if (plannedChanged) {
-      await fetch(`/api/inventory/${id}/planned`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planned }),
-      });
-    }
+  // ---- まとめて確定 ----
+  async function confirmAllUpdates() {
+    const updates = items
+      .filter(item => {
+        const qty     = tempQty[item.id]     ?? item.quantity;
+        const planned = tempPlanned[item.id]  ?? (item.planned ?? 0);
+        return qty !== item.quantity || planned !== (item.planned ?? 0);
+      })
+      .map(item => ({
+        id:       item.id,
+        quantity: tempQty[item.id]     ?? item.quantity,
+        planned:  tempPlanned[item.id]  ?? (item.planned ?? 0),
+      }));
+
+    if (updates.length === 0) return;
+
+    const hasQtyChange = updates.some((u, i) => {
+      const item = items.find(it => it.id === u.id);
+      return item && u.quantity !== item.quantity;
+    });
+
+    await fetch("/api/inventory/bulk-update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates }),
+    });
 
     await fetchInventory();
-    showToast(qtyChanged ? "更新しました（Chatworkに通知済み）" : "予定数量を更新しました");
+    showToast(hasQtyChange ? `${updates.length} 件を更新しました（Chatworkに通知済み）` : `${updates.length} 件の予定数量を更新しました`);
   }
 
   // ---- 商品追加 ----

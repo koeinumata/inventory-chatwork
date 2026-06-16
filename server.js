@@ -115,6 +115,28 @@ function buildChangeMessage(changedItem, oldQty, newQty, allItems) {
   );
 }
 
+// changes: [{ item, oldQty, newQty }]
+function buildBulkChangeMessage(changes, allItems) {
+  const totalQty  = allItems.reduce((s, i) => s + i.quantity, 0);
+  const changedIds = new Set(changes.map(c => c.item.id));
+
+  const changeLines = changes.map(c => {
+    const diff    = c.newQty - c.oldQty;
+    const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
+    return `${c.item.name}：${c.oldQty} → ${c.newQty}（${diffStr}）`;
+  }).join("\n");
+
+  const rows = allItems
+    .map(i => `${changedIds.has(i.id) ? "▶ " : "　"}${i.name}：${i.quantity}`)
+    .join("\n");
+
+  return (
+    `[info][title]📦 在庫数量 変更通知[/title]` +
+    `【変更内容】\n${changeLines}\n\n` +
+    `【在庫一覧】\n${rows}\n\n合計: ${totalQty}[/info]`
+  );
+}
+
 // --- REST API ---
 
 // バージョン取得
@@ -129,6 +151,63 @@ app.get("/api/inventory", async (req, res) => {
   }
   const result = await pool.query("SELECT * FROM inventory ORDER BY sort_order, id");
   res.json(result.rows);
+});
+
+// 一括更新（Chatwork通知は1回のみ）
+app.post("/api/inventory/bulk-update", async (req, res) => {
+  const { updates } = req.body; // [{ id, quantity?, planned? }]
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).json({ error: "updates が必要です" });
+  }
+
+  const qtyChanges = []; // [{ item, oldQty, newQty }]
+
+  if (!USE_DB) {
+    const data = loadJSON();
+    for (const u of updates) {
+      const idx = data.findIndex(i => i.id === u.id);
+      if (idx === -1) continue;
+      const oldItem = { ...data[idx] };
+      if (u.quantity !== undefined) {
+        const newQty = Number(u.quantity);
+        if (newQty !== oldItem.quantity) {
+          qtyChanges.push({ item: oldItem, oldQty: oldItem.quantity, newQty });
+        }
+        data[idx] = { ...data[idx], quantity: newQty };
+      }
+      if (u.planned !== undefined) {
+        data[idx] = { ...data[idx], planned: Number(u.planned) };
+      }
+    }
+    saveJSON(data);
+    if (qtyChanges.length > 0) {
+      const msg = buildBulkChangeMessage(qtyChanges, data);
+      sendChatwork(msg);
+    }
+    return res.json({ ok: true });
+  }
+
+  for (const u of updates) {
+    const current = await pool.query("SELECT * FROM inventory WHERE id = $1", [u.id]);
+    if (current.rows.length === 0) continue;
+    const oldItem = current.rows[0];
+    if (u.quantity !== undefined) {
+      const newQty = Number(u.quantity);
+      if (newQty !== oldItem.quantity) {
+        qtyChanges.push({ item: oldItem, oldQty: oldItem.quantity, newQty });
+      }
+      await pool.query("UPDATE inventory SET quantity = $1 WHERE id = $2", [newQty, u.id]);
+    }
+    if (u.planned !== undefined) {
+      await pool.query("UPDATE inventory SET planned = $1 WHERE id = $2", [Number(u.planned), u.id]);
+    }
+  }
+  if (qtyChanges.length > 0) {
+    const all = await pool.query("SELECT * FROM inventory ORDER BY sort_order, id");
+    const msg = buildBulkChangeMessage(qtyChanges, all.rows);
+    sendChatwork(msg);
+  }
+  res.json({ ok: true });
 });
 
 // 並び替え（※ :id ルートより前に定義する）
