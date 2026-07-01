@@ -72,16 +72,29 @@ npm run dev
 | 公開 URL | https://inventory-chatwork.onrender.com |
 | ビルドコマンド | `npm install` |
 | 起動コマンド | `node server.js` |
-| データベース名 | `inventory-chatwork-db`（PostgreSQL・無料プラン） |
-| `DATABASE_URL` | データベースの Internal URL を自動で注入 |
+| Web プラン | Starter（$7/月・常時稼働） |
+| データベース名 | `inventory-chatwork-db`（PostgreSQL） |
+| DB プラン | Basic-256mb（$6/月）+ Storage 1GB（$0.30/月） |
+| `DATABASE_URL` | Render ダッシュボードで「Datastore URL」として設定 |
 
 ### Render 環境変数
 
 | 変数名 | 設定方法 |
 |--------|---------|
-| `DATABASE_URL` | `render.yaml` によりデータベースから自動設定 |
+| `DATABASE_URL` | Render ダッシュボード → Environment → Add variable → Datastore URL で設定 |
 | `CHATWORK_API_TOKEN` | Render ダッシュボードで手動入力 |
 | `CHATWORK_ROOM_ID` | `render.yaml` に記載（`436461417`） |
+
+### 本番環境の構成（2026-07-01 移行済み）
+
+| 項目 | 内容 |
+|------|------|
+| データストア | PostgreSQL（`inventory-chatwork-db`）に移行済み |
+| Web プラン | Starter（スリープなし・常時稼働） |
+| DB プラン | Basic-256mb |
+| 月額費用 | 約 $13.30/月 |
+
+> **注意**: `render.yaml` の Blueprint で新規作成する場合、Web・DB ともに `starter` / `basic-256mb` プランで作成されます。Render ダッシュボードから `DATABASE_URL` を「Datastore URL」で手動リンクしてください。
 
 ## Chatwork 通知フォーマット
 

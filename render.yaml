@@ -2,6 +2,7 @@ services:
   - type: web
     name: inventory-chatwork
     env: node
+    plan: starter
     autoDeploy: true
     buildCommand: npm install
     startCommand: node server.js
@@ -19,4 +20,4 @@ databases:
   - name: inventory-chatwork-db
     databaseName: inventory_db
     user: inventory_user
-    plan: free
+    plan: starter
