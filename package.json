@@ -1,6 +1,6 @@
 {
   "name": "zaiko-kanri-system",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "在庫管理 + Chatwork自動通知",
   "main": "server.js",
   "scripts": {

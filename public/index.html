@@ -40,11 +40,12 @@
 
     /* 商品名インライン編集 */
     .btn-edit-name {
-      background: none; border: 1px solid #d1d5db; border-radius: 4px;
-      color: #6b7280; font-size: 11px; padding: 2px 7px; cursor: pointer;
-      margin-left: 6px; white-space: nowrap; flex-shrink: 0;
+      background: none; border: none; color: #b0b8c4; font-size: 13px;
+      padding: 2px 4px; cursor: pointer; margin-left: 4px;
+      white-space: nowrap; flex-shrink: 0; line-height: 1;
+      border-radius: 4px; vertical-align: middle;
     }
-    .btn-edit-name:hover { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
+    .btn-edit-name:hover { color: #0066ff; background: #eff6ff; }
     input.name-edit-input {
       font-size: 14px; font-weight: 600; border: 1px solid #0066ff;
       border-radius: 6px; padding: 4px 8px; outline: none; width: 100%; max-width: 240px;
@@ -82,8 +83,8 @@
     /* 数量コントロール */
     .qty-control { display: inline-flex; align-items: center; gap: 6px; }
     .qty-input {
-      width: 70px; text-align: center; font-size: 16px; font-weight: 600;
-      border: 1px solid #d1d1d1; border-radius: 6px; padding: 6px 6px;
+      width: 80px; text-align: center; font-size: 16px; font-weight: 600;
+      border: 1px solid #d1d1d1; border-radius: 6px; padding: 6px 8px;
       -moz-appearance: textfield;
     }
     .qty-input::-webkit-inner-spin-button,
@@ -161,8 +162,8 @@
     table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; table-layout: fixed; }
     th { font-size: 12px; font-weight: 600; color: #777; background: #fafafa; text-align: left; padding: 10px 14px; border-bottom: 1px solid #e5e5e5; }
     th:nth-child(1) { width: auto; }
-    th:nth-child(2) { width: 185px; text-align: center; }
-    th:nth-child(3) { width: 145px; text-align: center; }
+    th:nth-child(2) { width: 195px; text-align: center; }
+    th:nth-child(3) { width: 155px; text-align: center; }
     th:nth-child(4) { width: 150px; text-align: right; }
     td { padding: 8px 10px; font-size: 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
@@ -175,12 +176,8 @@
       .container { padding: 16px 12px 48px; }
       h1 { font-size: 20px; margin-bottom: 16px; }
 
-      table, tbody, tr, td { display: block; width: 100%; }
-      thead { display: block; }
-      thead tr { border: none; padding: 0; background: transparent; margin-bottom: 8px; border-radius: 0; }
-      thead th { display: none; }
-      thead th:first-child { display: block; padding: 0; font-size: 0; }
-      thead th:first-child #name-edit-mode-btn { font-size: 13px; }
+      table, thead, tbody, tr, td { display: block; width: 100%; }
+      thead { display: none; }
       tr {
         background: #fff; border: 1px solid #e5e5e5; border-radius: 10px;
         margin-bottom: 10px; padding: 12px 14px;
@@ -288,7 +285,7 @@
   <table>
     <thead>
       <tr>
-        <th>商品名 <button class="btn-edit-name" id="name-edit-mode-btn" onclick="toggleNameEditMode()">編集</button></th>
+        <th>商品名</th>
         <th style="text-align:center">数量</th>
         <th style="text-align:center">予定数量</th>
         <th style="text-align:right">操作</th>
@@ -306,7 +303,7 @@
   let tempQty     = {};
   let tempPlanned = {};
   let activeCategory = "__all__";
-  let nameEditMode   = false;
+  let editingNameId  = null;
 
   const nameInput     = document.getElementById("new-name");
   const qtyInput      = document.getElementById("new-qty");
@@ -427,11 +424,11 @@
       tr.dataset.id = item.id;
 
       if (isMobile()) {
-        const mobileNameCell = nameEditMode
+        const mobileNameCell = editingNameId === item.id
           ? `<input class="name-edit-input" id="name-edit-${item.id}" type="text" value="${esc(item.name)}"
-               onkeydown="if(event.key==='Enter')saveName(${item.id},this.value);"
+               onkeydown="if(event.key==='Enter')saveName(${item.id},this.value);if(event.key==='Escape')cancelEditName();"
                onblur="saveName(${item.id},this.value)" />`
-          : `<div>${esc(item.name)}</div>`;
+          : `<span>${esc(item.name)}</span><button class="btn-edit-name" onmousedown="event.preventDefault()" onclick="editName(${item.id})" title="商品名を編集">✏</button>`;
         tr.innerHTML = `
           <td class="td-name">
             <div class="name-main">
@@ -460,11 +457,11 @@
             <button class="btn-danger" onclick="deleteItem(${item.id})">削除</button>
           </td>`;
       } else {
-        const nameCell = nameEditMode
+        const nameCell = editingNameId === item.id
           ? `<input class="name-edit-input" id="name-edit-${item.id}" type="text" value="${esc(item.name)}"
-               onkeydown="if(event.key==='Enter')saveName(${item.id},this.value);"
+               onkeydown="if(event.key==='Enter')saveName(${item.id},this.value);if(event.key==='Escape')cancelEditName();"
                onblur="saveName(${item.id},this.value)" />`
-          : esc(item.name);
+          : `${esc(item.name)}<button class="btn-edit-name" onmousedown="event.preventDefault()" onclick="editName(${item.id})" title="商品名を編集">✏</button>`;
         tr.innerHTML = `
           <td class="td-name">
             ${dragHandle}${nameCell}
@@ -488,8 +485,6 @@
     });
     updateBulkConfirmBtn();
     initSortable();
-    const btn = document.getElementById("name-edit-mode-btn");
-    if (btn) btn.textContent = nameEditMode ? "完了" : "編集";
   }
 
   let _prevInnerWidth = window.innerWidth;
@@ -722,25 +717,33 @@
     }
   }
 
-  // ---- 商品名編集モード ----
-  function toggleNameEditMode() {
-    nameEditMode = !nameEditMode;
-    const btn = document.getElementById("name-edit-mode-btn");
-    if (btn) btn.textContent = nameEditMode ? "完了" : "編集";
+  // ---- 商品名インライン編集 ----
+  function editName(id) {
+    editingNameId = id;
+    render();
+    setTimeout(() => {
+      const input = document.getElementById(`name-edit-${id}`);
+      if (input) { input.focus(); input.select(); }
+    }, 0);
+  }
+
+  function cancelEditName() {
+    editingNameId = null;
     render();
   }
 
   async function saveName(id, value) {
     const newName = (value || "").trim();
     const item    = items.find(i => i.id === id);
-    if (!item) return;
-    if (!newName || newName === item.name) return;
+    if (!item) { editingNameId = null; render(); return; }
+    if (!newName || newName === item.name) { editingNameId = null; render(); return; }
 
     await fetch(`/api/inventory/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: newName }),
     });
+    editingNameId = null;
     await fetchInventory();
     showToast("商品名を変更しました");
   }
