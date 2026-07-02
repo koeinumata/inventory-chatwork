@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>在庫管理</title>
+  <title>在庫管理システム</title>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,8 +25,30 @@
     .stat-label { font-size: 12px; color: #777; margin-top: 4px; }
 
     /* 追加フォーム */
-    .add-form { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; }
+    .add-form { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+    .add-form-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; cursor: pointer; user-select: none;
+    }
+    .add-form-header:hover { background: #fafafa; }
+    .add-form-header h2 { margin: 0; }
+    .add-form-toggle-icon { font-size: 12px; color: #999; transition: transform 0.2s; }
+    .add-form-toggle-icon.open { transform: rotate(180deg); }
+    .add-form-body { padding: 0 16px 14px; border-top: 1px solid #f0f0f0; display: none; }
+    .add-form-body.open { display: block; }
     .add-form .fields { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+    /* 商品名インライン編集 */
+    .btn-edit-name {
+      background: none; border: 1px solid #d1d5db; border-radius: 4px;
+      color: #6b7280; font-size: 11px; padding: 2px 7px; cursor: pointer;
+      margin-left: 6px; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-edit-name:hover { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
+    input.name-edit-input {
+      font-size: 14px; font-weight: 600; border: 1px solid #0066ff;
+      border-radius: 6px; padding: 4px 8px; outline: none; width: 100%; max-width: 240px;
+    }
     input[type="text"], input[type="number"] {
       border: 1px solid #d1d1d1; border-radius: 6px; padding: 8px 10px;
       font-size: 16px; outline: none; width: 100%;
@@ -60,8 +82,8 @@
     /* 数量コントロール */
     .qty-control { display: inline-flex; align-items: center; gap: 6px; }
     .qty-input {
-      width: 76px; text-align: center; font-size: 16px; font-weight: 600;
-      border: 1px solid #d1d1d1; border-radius: 6px; padding: 6px 4px;
+      width: 70px; text-align: center; font-size: 16px; font-weight: 600;
+      border: 1px solid #d1d1d1; border-radius: 6px; padding: 6px 6px;
       -moz-appearance: textfield;
     }
     .qty-input::-webkit-inner-spin-button,
@@ -136,21 +158,29 @@
     .tab-btn.active { color: #0066ff; border-bottom-color: #0066ff; font-weight: 600; }
 
     /* ---- PC: テーブル ---- */
-    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; table-layout: fixed; }
     th { font-size: 12px; font-weight: 600; color: #777; background: #fafafa; text-align: left; padding: 10px 14px; border-bottom: 1px solid #e5e5e5; }
+    th:nth-child(1) { width: auto; }
+    th:nth-child(2) { width: 185px; text-align: center; }
+    th:nth-child(3) { width: 145px; text-align: center; }
+    th:nth-child(4) { width: 150px; text-align: right; }
     td { padding: 8px 10px; font-size: 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     .td-actions { text-align: right; white-space: nowrap; }
     .td-actions button { margin-left: 4px; }
-    .td-name { white-space: nowrap; }
+    .td-name { }
 
     /* ---- スマートフォン: カードレイアウト ---- */
     @media (max-width: 580px) {
       .container { padding: 16px 12px 48px; }
       h1 { font-size: 20px; margin-bottom: 16px; }
 
-      table, thead, tbody, tr, td { display: block; width: 100%; }
-      thead { display: none; }
+      table, tbody, tr, td { display: block; width: 100%; }
+      thead { display: block; }
+      thead tr { border: none; padding: 0; background: transparent; margin-bottom: 8px; border-radius: 0; }
+      thead th { display: none; }
+      thead th:first-child { display: block; padding: 0; font-size: 0; }
+      thead th:first-child #name-edit-mode-btn { font-size: 13px; }
       tr {
         background: #fff; border: 1px solid #e5e5e5; border-radius: 10px;
         margin-bottom: 10px; padding: 12px 14px;
@@ -165,8 +195,11 @@
       }
       .name-main { flex: 1; }
 
-      .qty-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
-      .qty-block { flex: 1; }
+      .qty-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; }
+      .qty-block { flex: 1; min-width: 0; }
+      .btn-case, .btn-case-placeholder { display: none; }
+      .qty-input { width: 58px; }
+      .arrow-btn span { width: 24px; height: 20px; font-size: 11px; }
       .qty-block-label {
         font-size: 11px; color: #777; font-weight: 600;
         text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
@@ -211,7 +244,7 @@
 </head>
 <body>
 <div class="container">
-  <h1>在庫管理<span class="version-badge" id="version-badge"></span></h1>
+  <h1>在庫管理システム<span class="version-badge" id="version-badge"></span></h1>
 
   <div class="summary">
     <div class="stat">
@@ -224,15 +257,20 @@
     </div>
   </div>
 
-  <div class="add-form">
-    <h2>商品を追加</h2>
-    <div class="fields">
-      <input class="input-name"     id="new-name"     type="text"   placeholder="商品名" />
-      <input class="input-qty"      id="new-qty"      type="number" placeholder="数量"       min="0" />
-      <input class="input-case"     id="new-case"     type="number" placeholder="ケース枚数"  min="0" />
-      <input class="input-category" id="new-category" type="text"   placeholder="カテゴリー（任意）" list="category-list" />
-      <datalist id="category-list"></datalist>
-      <button class="btn-primary" id="add-btn" onclick="addItem()" disabled>追加</button>
+  <div class="add-form" id="add-form">
+    <div class="add-form-header" onclick="toggleAddForm()">
+      <h2 style="margin:0">商品を追加</h2>
+      <span class="add-form-toggle-icon" id="add-form-icon">▼</span>
+    </div>
+    <div class="add-form-body" id="add-form-body">
+      <div class="fields">
+        <input class="input-name"     id="new-name"     type="text"   placeholder="商品名" />
+        <input class="input-qty"      id="new-qty"      type="number" placeholder="数量"       min="0" />
+        <input class="input-case"     id="new-case"     type="number" placeholder="ケース枚数・巻数"  min="0" />
+        <input class="input-category" id="new-category" type="text"   placeholder="カテゴリー（任意）" list="category-list" />
+        <datalist id="category-list"></datalist>
+        <button class="btn-primary" id="add-btn" onclick="addItem()" disabled>追加</button>
+      </div>
     </div>
   </div>
 
@@ -250,7 +288,7 @@
   <table>
     <thead>
       <tr>
-        <th>商品名</th>
+        <th>商品名 <button class="btn-edit-name" id="name-edit-mode-btn" onclick="toggleNameEditMode()">編集</button></th>
         <th style="text-align:center">数量</th>
         <th style="text-align:center">予定数量</th>
         <th style="text-align:right">操作</th>
@@ -268,6 +306,7 @@
   let tempQty     = {};
   let tempPlanned = {};
   let activeCategory = "__all__";
+  let nameEditMode   = false;
 
   const nameInput     = document.getElementById("new-name");
   const qtyInput      = document.getElementById("new-qty");
@@ -388,10 +427,15 @@
       tr.dataset.id = item.id;
 
       if (isMobile()) {
+        const mobileNameCell = nameEditMode
+          ? `<input class="name-edit-input" id="name-edit-${item.id}" type="text" value="${esc(item.name)}"
+               onkeydown="if(event.key==='Enter')saveName(${item.id},this.value);"
+               onblur="saveName(${item.id},this.value)" />`
+          : `<div>${esc(item.name)}</div>`;
         tr.innerHTML = `
           <td class="td-name">
             <div class="name-main">
-              <div>${esc(item.name)}</div>
+              ${mobileNameCell}
               ${catDisplay}
             </div>
             ${dragHandle}
@@ -416,9 +460,14 @@
             <button class="btn-danger" onclick="deleteItem(${item.id})">削除</button>
           </td>`;
       } else {
+        const nameCell = nameEditMode
+          ? `<input class="name-edit-input" id="name-edit-${item.id}" type="text" value="${esc(item.name)}"
+               onkeydown="if(event.key==='Enter')saveName(${item.id},this.value);"
+               onblur="saveName(${item.id},this.value)" />`
+          : esc(item.name);
         tr.innerHTML = `
           <td class="td-name">
-            ${dragHandle}${esc(item.name)}
+            ${dragHandle}${nameCell}
             <div>${catDisplay}</div>
           </td>
           <td style="text-align:center">
@@ -439,9 +488,15 @@
     });
     updateBulkConfirmBtn();
     initSortable();
+    const btn = document.getElementById("name-edit-mode-btn");
+    if (btn) btn.textContent = nameEditMode ? "完了" : "編集";
   }
 
-  window.addEventListener("resize", render);
+  let _prevInnerWidth = window.innerWidth;
+  window.addEventListener("resize", () => {
+    const w = window.innerWidth;
+    if (w !== _prevInnerWidth) { _prevInnerWidth = w; render(); }
+  });
 
   // ---- 予定0ボタン ----
   function resetPlanned(id) {
@@ -654,6 +709,40 @@
     await fetch(`/api/inventory/${id}`, { method: "DELETE" });
     await fetchInventory();
     showToast("削除しました");
+  }
+
+  // ---- アコーディオン（商品追加） ----
+  function toggleAddForm() {
+    const body = document.getElementById("add-form-body");
+    const icon = document.getElementById("add-form-icon");
+    const isOpen = body.classList.toggle("open");
+    icon.classList.toggle("open", isOpen);
+    if (isOpen) {
+      setTimeout(() => document.getElementById("new-name").focus(), 50);
+    }
+  }
+
+  // ---- 商品名編集モード ----
+  function toggleNameEditMode() {
+    nameEditMode = !nameEditMode;
+    const btn = document.getElementById("name-edit-mode-btn");
+    if (btn) btn.textContent = nameEditMode ? "完了" : "編集";
+    render();
+  }
+
+  async function saveName(id, value) {
+    const newName = (value || "").trim();
+    const item    = items.find(i => i.id === id);
+    if (!item) return;
+    if (!newName || newName === item.name) return;
+
+    await fetch(`/api/inventory/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName }),
+    });
+    await fetchInventory();
+    showToast("商品名を変更しました");
   }
 
   function showToast(msg) {
