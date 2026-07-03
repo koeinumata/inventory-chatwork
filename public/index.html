@@ -428,7 +428,7 @@
           ? `<input class="name-edit-input" id="name-edit-${item.id}" type="text" value="${esc(item.name)}"
                onkeydown="if(event.key==='Enter')saveName(${item.id},this.value);if(event.key==='Escape')cancelEditName();"
                onblur="saveName(${item.id},this.value)" />`
-          : `<span>${esc(item.name)}</span><button class="btn-edit-name" onmousedown="event.preventDefault()" onclick="editName(${item.id})" title="商品名を編集">✏</button>`;
+          : `<span>${esc(item.name)}</span><button class="btn-edit-name" onmousedown="event.preventDefault()" onclick="editName(${item.id})" title="商品名を編集">✏️</button>`;
         tr.innerHTML = `
           <td class="td-name">
             <div class="name-main">
@@ -461,7 +461,7 @@
           ? `<input class="name-edit-input" id="name-edit-${item.id}" type="text" value="${esc(item.name)}"
                onkeydown="if(event.key==='Enter')saveName(${item.id},this.value);if(event.key==='Escape')cancelEditName();"
                onblur="saveName(${item.id},this.value)" />`
-          : `${esc(item.name)}<button class="btn-edit-name" onmousedown="event.preventDefault()" onclick="editName(${item.id})" title="商品名を編集">✏</button>`;
+          : `${esc(item.name)}<button class="btn-edit-name" onmousedown="event.preventDefault()" onclick="editName(${item.id})" title="商品名を編集">✏️</button>`;
         tr.innerHTML = `
           <td class="td-name">
             ${dragHandle}${nameCell}
