@@ -8,7 +8,8 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #1a1a1a; }
-    .container { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+    .container { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; transition: padding-bottom 0.35s cubic-bezier(0.32, 0.72, 0, 1); }
+    body.dock-visible .container { padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
     h1 { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
     .version-badge {
       display: inline-block; font-size: 11px; font-weight: 500;
@@ -223,20 +224,44 @@
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
     .toast.show { opacity: 1; }
 
-    /* 一括確定バー */
-    .bulk-confirm-bar {
+    /* 一括確定ドック（画面下からふわっと表示） */
+    .bulk-confirm-dock {
+      position: fixed;
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      left: 50%;
+      z-index: 100;
       display: flex; align-items: center; justify-content: space-between;
-      background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px;
-      padding: 10px 14px; margin-bottom: 12px; gap: 12px;
+      gap: 14px;
+      width: min(480px, calc(100vw - 24px));
+      padding: 12px 12px 12px 18px;
+      background: rgba(255, 251, 235, 0.88);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      border-radius: 20px;
+      box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.04),
+        0 12px 32px rgba(0, 0, 0, 0.12);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(calc(100% + 24px));
+      transition:
+        transform 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+        opacity 0.35s ease;
     }
-    .bulk-confirm-bar.hidden { display: none; }
-    .bulk-confirm-label { font-size: 13px; color: #92400e; font-weight: 500; }
+    .bulk-confirm-dock.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+    .bulk-confirm-label { font-size: 13px; color: #92400e; font-weight: 600; flex: 1; min-width: 0; }
     .btn-bulk-confirm {
       background: #f59e0b; color: #fff; font-size: 14px; font-weight: 700;
-      padding: 8px 20px; border-radius: 6px; white-space: nowrap; flex-shrink: 0;
+      padding: 10px 22px; border-radius: 14px; white-space: nowrap; flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
     }
-    .btn-bulk-confirm:active { background: #d97706; }
-    .btn-bulk-confirm:disabled { background: #ddd; color: #999; cursor: not-allowed; }
+    .btn-bulk-confirm:active { background: #d97706; transform: scale(0.97); }
+    .btn-bulk-confirm:disabled { background: #ddd; color: #999; cursor: not-allowed; box-shadow: none; }
   </style>
 </head>
 <body>
@@ -277,11 +302,6 @@
     <div class="tabs" id="tabs"></div>
   </div>
 
-  <div class="bulk-confirm-bar hidden" id="bulk-confirm-bar">
-    <span class="bulk-confirm-label" id="bulk-confirm-label">編集中の項目があります</span>
-    <button class="btn-bulk-confirm" onclick="confirmAllUpdates()">まとめて確定</button>
-  </div>
-
   <table>
     <thead>
       <tr>
@@ -294,6 +314,11 @@
     <tbody id="inventory-body"></tbody>
   </table>
   <p style="margin-top:8px;font-size:12px;color:#999" id="count-label"></p>
+</div>
+
+<div class="bulk-confirm-dock" id="bulk-confirm-bar">
+  <span class="bulk-confirm-label" id="bulk-confirm-label">編集中の項目があります</span>
+  <button class="btn-bulk-confirm" onclick="confirmAllUpdates()">まとめて確定</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -633,10 +658,12 @@
     const bar   = document.getElementById("bulk-confirm-bar");
     const label = document.getElementById("bulk-confirm-label");
     if (changedItems.length > 0) {
-      bar.classList.remove("hidden");
+      bar.classList.add("visible");
+      document.body.classList.add("dock-visible");
       label.textContent = `${changedItems.length} 件の変更があります`;
     } else {
-      bar.classList.add("hidden");
+      bar.classList.remove("visible");
+      document.body.classList.remove("dock-visible");
     }
   }
 
